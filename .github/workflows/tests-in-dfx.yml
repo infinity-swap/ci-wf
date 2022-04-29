@@ -1,0 +1,96 @@
+name: Run tests in DFX env
+on:
+  workflow_call:
+    inputs:
+      entrypoint-script:
+        required: true
+        type: string
+      ic-module-name:
+        required: true
+        type: string
+    secrets:
+      gh_token:
+        required: true
+      gh_login:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  IC_MODULE_NAME: ${{ inputs.ic-module-name }}
+
+jobs:
+  dfx-based-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/infinity-swap/ic-dev-full:latest
+      credentials:
+        username: ${{ secrets.gh_login }}
+        password: ${{ secrets.gh_token }}
+
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.gh_token }}
+
+      - name: Geting week number
+        id: date
+        run: echo "::set-output name=week::$(date +'%U')"
+      
+      - name: Getting src cache tag
+        id: cache
+        # Split only between main and other branches
+        run: echo "::set-output name=tag::$(if [ "$GITHUB_REF_NAME" = "main" ]; then echo "main"; else echo "branch"; fi)"
+        # run: echo "::set-output name=tag::$(if [ -z "$GITHUB_HEAD_REF" ]; then echo $GITHUB_REF_NAME; else echo $GITHUB_HEAD_REF; fi)"
+        # run: echo "::set-output name=tag::$(git ls-files -s $GITHUB_WORKSPACE/neuro/*/src | git hash-object --stdin)"
+
+      - name: Cargo deps cache
+        uses: actions/cache@v3
+        with:
+          # hashFiles function does not work because of error "The template is not valid." but template is valid
+          # key: cargo-full-${{ github.ref_name }}-${{ hashFiles('**/Cargo.toml') }}
+          # Cache cargo dependencies only once per week for all branches 
+          key: cargo-deps-${{ steps.date.outputs.week }}
+          restore-keys: |
+            cargo-deps-
+
+          path: |
+            ~/.cargo
+            /usr/local/cargo/
+
+      - name: Cargo target cache
+        uses: actions/cache@v3
+        with:
+          # Cache target once per week/branch
+          key: cargo-target-${{ steps.cache.outputs.tag }}-${{ steps.date.outputs.week }}
+          restore-keys: |
+            cargo-target-${{ steps.cache.outputs.tag }}-
+            cargo-target-main-
+            cargo-target-
+
+          path: |
+            ${{ github.workspace }}/target
+
+      # Guess it works only for root based single rust projects
+      # - name: "Setup"
+      #   uses: actions-rs/toolchain@v1
+      #   with:
+      #     profile: minimal
+      #     toolchain: ${{ matrix.rust }}
+      #     override: true
+      #     components: rustfmt, clippy
+
+      - name: "Checking code format"
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all --check
+
+      - name: Runing tests script
+        run: |
+          echo "ENVIRONMENT"
+          env
+
+          ${{ inputs.entrypoint-script }}
+
