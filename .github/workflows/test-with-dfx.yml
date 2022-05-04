@@ -1,0 +1,70 @@
+name: Run tests in DFX environment
+on:
+  workflow_call:
+    inputs:
+      entrypoint-script:
+        required: true
+        type: string
+      ic-module-name:
+        required: true
+        type: string
+    secrets:
+      gh_token:
+        required: true
+      gh_login:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  IC_MODULE_NAME: ${{ inputs.ic-module-name }}
+
+jobs:
+  dfx-based-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/infinity-swap/ic-dev-full:latest
+      credentials:
+        username: ${{ secrets.gh_login }}
+        password: ${{ secrets.gh_token }}
+
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.gh_token }}
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: "Checking code format"
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all --check
+
+      - name: Run audit
+        run: |
+          cargo install cargo-audit
+          cargo audit --ignore RUSTSEC-2020-0071 --ignore RUSTSEC-2020-0159
+          
+      - name: Checking format
+        run: |
+          cargo fmt -- --check
+          
+      - name: Running clippy
+        run: |
+          cargo clippy -D Wa
+          
+      - name: Runing tests script
+        run: |
+          echo "ENVIRONMENT"
+          env
+          ${{ inputs.entrypoint-script }}
+          
+      - name: Notify slack channel
+        uses: slackapi/slack-github-action@v1.17.0
+        with:
+          channel-id: "alerts-github-actions"
+          slack-message: "GitHub Test workflow result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
