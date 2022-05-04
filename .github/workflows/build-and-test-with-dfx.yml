@@ -11,6 +11,9 @@ on:
       rs-skip-clippy:
         type: boolean
         required: false
+      skip-dfx-tests:
+        type: boolean
+        required: false
     secrets:
       gh_token:
         required: true
@@ -97,10 +100,23 @@ jobs:
           command: clippy
           args: --all-features --all-targets
 
+      - name: "Building main wasm module"
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target wasm32-unknown-unknown --release -p ${{ inputs.ic-module-name }}
+
+      - name: "Upload artifact for the next job"
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error 
+          name: artifact-${{ inputs.ic-module-name }}
+          path: target/wasm32-unknown-unknown/release/${{ inputs.ic-module-name }}.wasm
+
       - name: Runing tests script
+        if: ${{ inputs.skip-dfx-tests != true }}
         run: |
           echo "ENVIRONMENT"
           env
 
           ${{ inputs.entrypoint-script }}
-

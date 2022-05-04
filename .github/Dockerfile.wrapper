@@ -1,0 +1,11 @@
+# We just wrap any files inside Docker image.
+# Busybox is a little bit overhead here but it allows us to extract wrapped files more easy.
+FROM busybox:stable
+
+# Input directory with files to wrap
+ARG SOURCE_DIR=.
+
+COPY $SOURCE_DIR /wrapped
+
+# Just to allow any user to access wrapped files
+RUN chmod -R 0755 /wrapped
