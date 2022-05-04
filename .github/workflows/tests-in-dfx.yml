@@ -3,11 +3,14 @@ on:
   workflow_call:
     inputs:
       entrypoint-script:
-        required: true
         type: string
+        required: true
       ic-module-name:
-        required: true
         type: string
+        required: true
+      rs-skip-clippy:
+        type: boolean
+        required: false
     secrets:
       gh_token:
         required: true
@@ -86,6 +89,13 @@ jobs:
         with:
           command: fmt
           args: --all --check
+
+      - name: "Checking code style"
+        if: ${{ inputs.rs-skip-clippy != true }} 
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-features --all-targets
 
       - name: Runing tests script
         run: |
