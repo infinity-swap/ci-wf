@@ -8,6 +8,11 @@ on:
       ic-module-name:
         type: string
         required: true
+      # Name of the artfact to produce for next jobs
+      # If not defined -> would skip artifact uploading
+      output-artifact:
+        type: string
+        required: false
       rs-skip-clippy:
         type: boolean
         required: false
@@ -25,7 +30,7 @@ env:
   IC_MODULE_NAME: ${{ inputs.ic-module-name }}
 
 jobs:
-  dfx-based-tests:
+  build-and-test-on-dfx:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/infinity-swap/ic-dev-full:latest
@@ -106,11 +111,12 @@ jobs:
           command: build
           args: --target wasm32-unknown-unknown --release -p ${{ inputs.ic-module-name }}
 
-      - name: "Upload artifact for the next job"
+      - name: "Uploading artifact: ${{ inputs.output-artifact }}"
+        if: ${{ inputs.output-artifact }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error 
-          name: artifact-${{ inputs.ic-module-name }}
+          name: ${{ inputs.output-artifact }}
           path: target/wasm32-unknown-unknown/release/${{ inputs.ic-module-name }}.wasm
 
       - name: Runing tests script

@@ -1,10 +1,22 @@
-name: Publish wasm as github package
+name: Publish wrapped artifacts as docker package on GH
 on:
   workflow_call:
     inputs:
-      ic-module-name:
+      # Github artifact that was produced by previous job.
+      # Expecting not to have any nested folders inside artifact
+      input-artifact:
         type: string
         required: true
+      push-image:
+        type: boolean
+        required: true
+      output-image-name:
+        type: string
+        required: true
+      output-image-tag:
+        type: string
+        required: true
+        
     secrets:
       gh_token:
         required: true
@@ -12,7 +24,7 @@ on:
         required: true
 
 jobs:
-  dfx-based-tests:
+  publish-wrapped-artifact:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,21 +41,26 @@ jobs:
           username: ${{ secrets.gh_login }}
           password: ${{ secrets.gh_token }}
 
-      - uses: actions/download-artifact@v3
+      - name: "Downloading artifact: ${{ inputs.input-artifact }}"
+        uses: actions/download-artifact@v3
         with:
-          name: artifact-${{ inputs.ic-module-name }}
+          name: ${{ inputs.input-artifact}}
+          path: ./artifact
           
       - name: Wrapped files directory structure
-        run: ls -R
+        run: ls -R ./artifact
 
-      - name: Wrapping artifact in the docker image
+      - name: Checkout template repo
+        uses: actions/checkout@v3
+        with:
+          repository: infinity-swap/.github
+          path: self-workspace
+
+      - name: "Wrap up in image: ${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}"
         uses: docker/build-push-action@v2
         with:
-          push: false
-          github-token: ${{ secrets.gh_token }}
-          # context: "{{defaultContext}}"
-          # secrets: GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          push: ${{ inputs.push-image }}
+          context: ./artifact
+          file: self-workspace/Dockerfile.wrapper
           tags: |
-            ghcr.io/${{ github.repository_owner }}/ic-bin:latest
-
-          file: ./Dockerfile.wrapper
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}

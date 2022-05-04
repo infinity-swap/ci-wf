@@ -9,3 +9,6 @@ COPY $SOURCE_DIR /wrapped
 
 # Just to allow any user to access wrapped files
 RUN chmod -R 0755 /wrapped
+
+RUN echo "WRAPPED ARTIFACTS:"
+RUN ls -la /wrapped
