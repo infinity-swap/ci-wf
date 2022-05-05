@@ -1,22 +1,28 @@
-name: Run tests in DFX env
+name: "Build and Test"
 on:
   workflow_call:
     inputs:
-      entrypoint-script:
+      # Tests script to launch integration (whatever) tests with DFX environment
+      # If skipped tests would not be launched
+      test-script:
         type: string
-        required: true
-      ic-module-name:
-        type: string
-        required: true
-      # Name of the artfact to produce for next jobs
+        required: false
+      # Force skipping test-script if it is provided
+      # Use this for advanced configuration
+      skip-test:
+        type: boolean
+        required: false
+      # Name of the github artfact to upload for reusing in next jobs
       # If not defined -> would skip artifact uploading
       output-artifact:
         type: string
         required: false
-      rs-skip-clippy:
-        type: boolean
+      # wasm module to build
+      # if skipped than all wasms modules will be build
+      ic-module-name:
+        type: string
         required: false
-      skip-dfx-tests:
+      rs-skip-clippy:
         type: boolean
         required: false
     secrets:
@@ -30,7 +36,7 @@ env:
   IC_MODULE_NAME: ${{ inputs.ic-module-name }}
 
 jobs:
-  build-and-test-on-dfx:
+  assemble-and-test:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/infinity-swap/ic-dev-full:latest
@@ -99,17 +105,25 @@ jobs:
           args: --all --check
 
       - name: "Checking code style"
-        if: ${{ inputs.rs-skip-clippy != true }} 
+        if: ${{ ! inputs.rs-skip-clippy }} 
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --all-features --all-targets
 
-      - name: "Building main wasm module"
+      - name: "Build SINGLE wasm module: ${{ inputs.ic-module-name }}"
+        if:  ${{ inputs.ic-module-name }}
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --target wasm32-unknown-unknown --release -p ${{ inputs.ic-module-name }}
+
+      - name: "Build ALL wasm modules"
+        if: ${{ ! inputs.ic-module-name }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target wasm32-unknown-unknown --release
 
       - name: "Uploading artifact: ${{ inputs.output-artifact }}"
         if: ${{ inputs.output-artifact }}
@@ -117,12 +131,15 @@ jobs:
         with:
           if-no-files-found: error 
           name: ${{ inputs.output-artifact }}
-          path: target/wasm32-unknown-unknown/release/${{ inputs.ic-module-name }}.wasm
+          path: target/wasm32-unknown-unknown/release/*.wasm
 
-      - name: Runing tests script
-        if: ${{ inputs.skip-dfx-tests != true }}
+      - name: "Runing testing script: ${{ inputs.test-script }}"
+        if: ${{ inputs.test-script && ! inputs.skip-test }}
         run: |
           echo "ENVIRONMENT"
           env
 
-          ${{ inputs.entrypoint-script }}
+          ${{ inputs.test-script }}
+      
+      - name: "Removing wasm modules from target if any"
+        run: rm -f target/wasm32-unknown-unknown/release/*.wasm

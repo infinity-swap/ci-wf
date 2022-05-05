@@ -1,4 +1,4 @@
-name: Publish wrapped artifacts as docker package on GH
+name: Publish wrapped artifact as docker image on GH
 on:
   workflow_call:
     inputs:
@@ -7,6 +7,10 @@ on:
       input-artifact:
         type: string
         required: true
+      # Add prefix to all files in artifact before publising
+      add-prefix-to-files:
+        type: string
+        required: false
       push-image:
         type: boolean
         required: true
@@ -15,7 +19,11 @@ on:
         required: true
       output-image-tag:
         type: string
-        required: true
+        required: false
+      # Publish artifact with latest tag
+      output-image-tag-latest:
+        type: boolean
+        required: false
         
     secrets:
       gh_token:
@@ -44,10 +52,14 @@ jobs:
       - name: "Downloading artifact: ${{ inputs.input-artifact }}"
         uses: actions/download-artifact@v3
         with:
-          name: ${{ inputs.input-artifact}}
+          name: ${{ inputs.input-artifact }}
           path: ./artifact
-          
-      - name: Wrapped files directory structure
+
+      - name: "Adding prefix \"${{ inputs.add-prefix-to-files }}\" to artifact files"
+        if: ${{ inputs.add-prefix-to-files }}
+        run: cd ./artifact && ls -p .| grep -v / | xargs -I {} mv {} ${{ inputs.add-prefix-to-files }}{}
+
+      - name: Wrapped files list
         run: ls -R ./artifact
 
       - name: Checkout template repo
@@ -56,11 +68,25 @@ jobs:
           repository: infinity-swap/.github
           path: self-workspace
 
-      - name: "Wrap up in image: ${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}"
+      - name: "Fail if not latest build or no tag is provided"
+        if: ${{ inputs.push-image && ! inputs.output-image-tag && ! inputs.output-image-tag-latest }}
+        run: exit 42
+
+      - name: "Adding \"latest\" tag"
+        if: ${{ inputs.output-image-tag-latest }}
+        run: echo "IMAGE_TAG_LATEST=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:latest" >> $GITHUB_ENV
+
+      - name: "Adding \"${{ inputs.output-image-tag }}\" tag"
+        if: ${{ inputs.output-image-tag }}
+        run: echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}" >> $GITHUB_ENV
+
+      - name: "Building image. Will publish: ${{ inputs.push-image }}"
         uses: docker/build-push-action@v2
         with:
           push: ${{ inputs.push-image }}
           context: ./artifact
           file: self-workspace/Dockerfile.wrapper
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}
+            ${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_TAG_LATEST }}
+            
