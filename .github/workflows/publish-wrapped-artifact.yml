@@ -17,9 +17,9 @@ on:
       output-image-name:
         type: string
         required: true
-      output-image-tag:
-        type: string
-        required: false
+      # output-image-tag:
+      #   type: string
+      #   required: false
       # Publish artifact with latest tag
       output-image-tag-latest:
         type: boolean
@@ -62,23 +62,29 @@ jobs:
       - name: Wrapped files list
         run: ls -R ./artifact
 
+      # NOTE this step. It refers to repository where reusable workflows are
       - name: Checkout template repo
         uses: actions/checkout@v3
         with:
-          repository: infinity-swap/.github
+          repository: infinity-swap/ci-wf
           path: self-workspace
 
       - name: "Fail if not latest build or no tag is provided"
-        if: ${{ inputs.push-image && ! inputs.output-image-tag && ! inputs.output-image-tag-latest }}
+        # if: ${{ inputs.push-image && ! inputs.output-image-tag && ! inputs.output-image-tag-latest }}
+        if: ${{ inputs.push-image && github.ref_type != 'tag'  && ! inputs.output-image-tag-latest }}
         run: exit 42
 
       - name: "Adding \"latest\" tag"
         if: ${{ inputs.output-image-tag-latest }}
         run: echo "IMAGE_TAG_LATEST=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:latest" >> $GITHUB_ENV
 
-      - name: "Adding \"${{ inputs.output-image-tag }}\" tag"
-        if: ${{ inputs.output-image-tag }}
-        run: echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}" >> $GITHUB_ENV
+      - name: "Adding image tag"
+        # if: ${{ inputs.output-image-tag }}
+        # run: echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}" >> $GITHUB_ENV
+        if: ${{ github.ref_type == 'tag' }}
+        run: |
+          echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "TAG ADDED: ${{ github.ref_name }}"
 
       - name: "Building image. Will publish: ${{ inputs.push-image }}"
         uses: docker/build-push-action@v2

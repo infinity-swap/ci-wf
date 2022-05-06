@@ -133,13 +133,13 @@ jobs:
           name: ${{ inputs.output-artifact }}
           path: target/wasm32-unknown-unknown/release/*.wasm
 
-      - name: "Runing testing script: ${{ inputs.test-script }}"
-        if: ${{ inputs.test-script && ! inputs.skip-test }}
+      - name: "Current environment"
         run: |
-          echo "ENVIRONMENT"
           env
 
-          ${{ inputs.test-script }}
+      - name: "Runing test script"
+        if: ${{ inputs.test-script && ! inputs.skip-test }}
+        run: ${{ inputs.test-script }}
       
       - name: "Removing wasm modules from target if any"
         run: rm -f target/wasm32-unknown-unknown/release/*.wasm
