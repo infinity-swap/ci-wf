@@ -62,10 +62,11 @@ jobs:
       - name: Wrapped files list
         run: ls -R ./artifact
 
+      # NOTE this step. It refers to repository where reusable workflows are
       - name: Checkout template repo
         uses: actions/checkout@v3
         with:
-          repository: infinity-swap/.github
+          repository: infinity-swap/ci-wf
           path: self-workspace
 
       - name: "Fail if not latest build or no tag is provided"
