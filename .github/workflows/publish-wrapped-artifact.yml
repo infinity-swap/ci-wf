@@ -17,10 +17,6 @@ on:
       output-image-name:
         type: string
         required: true
-      # output-image-tag:
-      #   type: string
-      #   required: false
-      # Publish artifact with latest tag
       output-image-tag-latest:
         type: boolean
         required: false
@@ -70,7 +66,6 @@ jobs:
           path: self-workspace
 
       - name: "Fail if not latest build or no tag is provided"
-        # if: ${{ inputs.push-image && ! inputs.output-image-tag && ! inputs.output-image-tag-latest }}
         if: ${{ inputs.push-image && github.ref_type != 'tag'  && ! inputs.output-image-tag-latest }}
         run: exit 42
 
@@ -79,8 +74,6 @@ jobs:
         run: echo "IMAGE_TAG_LATEST=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:latest" >> $GITHUB_ENV
 
       - name: "Adding image tag"
-        # if: ${{ inputs.output-image-tag }}
-        # run: echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ inputs.output-image-tag }}" >> $GITHUB_ENV
         if: ${{ github.ref_type == 'tag' }}
         run: |
           echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ github.ref_name }}" >> $GITHUB_ENV
