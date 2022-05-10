@@ -36,6 +36,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v1
 
+      - name: "Updats"
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          
       - name: "Checking code format"
         uses: actions-rs/cargo@v1
         with:
