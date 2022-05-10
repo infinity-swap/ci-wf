@@ -76,12 +76,13 @@ jobs:
       #     toolchain: ${{ matrix.rust }}
       #     override: true
       #     components: rustfmt, clippy
-
-      - name: "Checking code format"
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all --check
+      
+      # TODO: cargo update before check! 
+      #- name: "Checking code format"
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: fmt
+      #    args: --all --check
 
       - name: Runing tests script
         run: |
