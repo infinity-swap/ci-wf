@@ -76,15 +76,16 @@ jobs:
       #     toolchain: ${{ matrix.rust }}
       #     override: true
       #     components: rustfmt, clippy
+      
+      # TODO: cargo update before check! 
+      #- name: "Checking code format"
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: fmt
+      #    args: --all --check
 
-      - name: "Checking code format"
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all --check
-
-      - name: Runing tests script
-        run: |
-          echo "ENVIRONMENT"
-          env
-          ${{ inputs.entrypoint-script }}
+      #- name: Runing tests script
+      #  run: |
+      #    echo "ENVIRONMENT"
+      #    env
+      #    ${{ inputs.entrypoint-script }}
