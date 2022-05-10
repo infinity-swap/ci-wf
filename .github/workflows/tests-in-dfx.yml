@@ -84,8 +84,8 @@ jobs:
       #    command: fmt
       #    args: --all --check
 
-      #- name: Runing tests script
-      #  run: |
-      #    echo "ENVIRONMENT"
-      #    env
-      #    ${{ inputs.entrypoint-script }}
+      - name: Runing tests script
+        run: |
+          echo "ENVIRONMENT"
+          env
+          ${{ inputs.entrypoint-script }}
