@@ -1,0 +1,82 @@
+name: Build image based on ic
+on:
+  workflow_call:
+    inputs:
+      # Github artifact that was produced by previous job.
+      # Expecting not to have any nested folders inside artifact
+      input-artifact:
+        type: string
+        required: true
+      dockerfile:
+        type: string
+        required: true
+      push-image:
+        type: boolean
+        required: true
+      output-image-name:
+        type: string
+        required: true
+      output-image-tag-latest:
+        type: boolean
+        required: false
+        
+    secrets:
+      gh_token:
+        required: true
+      gh_login:
+        required: true
+
+jobs:
+  publish-wrapped-artifact:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      
+      - name: Login to Github Registry
+        uses: docker/login-action@v1 
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.gh_login }}
+          password: ${{ secrets.gh_token }}
+
+      - name: Checkout template repo
+        uses: actions/checkout@v3
+
+      - name: "Downloading artifact: ${{ inputs.input-artifact }}"
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.input-artifact }}
+          path: ./.artifact
+
+      - name: Artifact files
+        run: ls -R ./.artifact
+
+      - name: "Fail if not latest build or no tag is provided"
+        if: ${{ inputs.push-image && github.ref_type != 'tag'  && ! inputs.output-image-tag-latest }}
+        run: exit 42
+
+      - name: "Adding \"latest\" tag"
+        if: ${{ inputs.output-image-tag-latest }}
+        run: echo "IMAGE_TAG_LATEST=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:latest" >> $GITHUB_ENV
+
+      - name: "Adding image tag"
+        if: ${{ github.ref_type == 'tag' }}
+        run: |
+          echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "TAG ADDED: ${{ github.ref_name }}"
+
+      - name: "Building image. Will publish: ${{ inputs.push-image }}"
+        uses: docker/build-push-action@v2
+        with:
+          push: ${{ inputs.push-image }}
+          context: .
+          file: ${{ inputs.dockerfile }}
+          tags: |
+            ${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_TAG_LATEST }}
+            
