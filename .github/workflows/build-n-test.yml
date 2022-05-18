@@ -21,6 +21,9 @@ on:
       artifact-script:
         type: string
         required: false
+      skip-target-cache:
+        type: boolean
+        required: false
       rs-skip-clippy:
         type: boolean
         required: false
@@ -32,7 +35,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  IC_MODULE_NAME: ${{ inputs.ic-module-name }}
 
 jobs:
   assemble-and-test:
@@ -76,6 +78,7 @@ jobs:
             /usr/local/cargo/
 
       - name: Cargo target cache
+        if: ${{ ! inputs.skip-target-cache }}
         uses: actions/cache@v3
         with:
           # Cache target once per week/branch
@@ -113,8 +116,11 @@ jobs:
       - name: "Prepare artifact for:  ${{ inputs.output-artifact }}"
         if: ${{ inputs.output-artifact }}
         run: |
-          mkdir .artifact
+          rm -rf .artifact
+          mkdir  .artifact
           ${{ inputs.artifact-script }}
+          echo "Artifact content:"
+          ls -la .artifact
 
       - name: "Current environment"
         run: |
@@ -128,7 +134,8 @@ jobs:
         if: ${{ inputs.output-artifact }}
         uses: actions/upload-artifact@v3
         with:
-          if-no-files-found: error 
+          if-no-files-found: error
+          retention-days: 3
           name: ${{ inputs.output-artifact }}
           path: .artifact/*
       

@@ -56,7 +56,7 @@ jobs:
         run: cd ./artifact && ls -p .| grep -v / | xargs -I {} mv {} ${{ inputs.add-prefix-to-files }}{}
 
       - name: Wrapped files list
-        run: ls -R ./artifact
+        run: ls -laR ./artifact
 
       # NOTE this step. It refers to repository where reusable workflows are
       - name: Checkout template repo

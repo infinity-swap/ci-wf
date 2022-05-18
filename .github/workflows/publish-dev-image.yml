@@ -54,7 +54,7 @@ jobs:
           path: ./.artifact
 
       - name: Artifact files
-        run: ls -R ./.artifact
+        run: ls -laR ./.artifact
 
       - name: "Fail if not latest build or no tag is provided"
         if: ${{ inputs.push-image && github.ref_type != 'tag'  && ! inputs.output-image-tag-latest }}
