@@ -7,6 +7,10 @@ on:
       input-artifact:
         type: string
         required: true
+      # Optional 2nd artifact to use
+      input-artifact-opt:
+        type: string
+        required: false
       dockerfile:
         type: string
         required: true
@@ -52,8 +56,15 @@ jobs:
         with:
           name: ${{ inputs.input-artifact }}
           path: ./.artifact
+      
+      - name: "Optional artifact: ${{ inputs.input-artifact-opt }}"
+        uses: actions/download-artifact@v3
+        if: ${{ inputs.input-artifact-opt }}
+        with:
+          name: ${{ inputs.input-artifact-opt }}
+          path: ./.artifact
 
-      - name: Artifact files
+      - name: List files from artifact
         run: ls -laR ./.artifact
 
       - name: "Fail if not latest build or no tag is provided"
