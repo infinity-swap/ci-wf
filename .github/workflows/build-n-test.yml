@@ -117,10 +117,6 @@ jobs:
         run: |
           env
 
-      - name: "Runing test script"
-        if: ${{ inputs.test-script && ! inputs.skip-test }}
-        run: ${{ inputs.test-script }}
-
       - name: "Prepare artifact for:  ${{ inputs.output-artifact }}"
         if: ${{ inputs.output-artifact }}
         run: |
@@ -129,6 +125,10 @@ jobs:
           ${{ inputs.artifact-script }}
           echo "Artifact content:"
           ls -laR .artifact
+          
+      - name: "Runing test script"
+        if: ${{ inputs.test-script && ! inputs.skip-test }}
+        run: ${{ inputs.test-script }}
 
       - name: "Uploading artifact: ${{ inputs.output-artifact }}"
         if: ${{ inputs.output-artifact }}
