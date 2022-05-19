@@ -113,15 +113,6 @@ jobs:
           command: clippy
           args: --all-features --all-targets
 
-      - name: "Prepare artifact for:  ${{ inputs.output-artifact }}"
-        if: ${{ inputs.output-artifact }}
-        run: |
-          rm -rf .artifact
-          mkdir  .artifact
-          ${{ inputs.artifact-script }}
-          echo "Artifact content:"
-          ls -la .artifact
-
       - name: "Current environment"
         run: |
           env
@@ -129,6 +120,15 @@ jobs:
       - name: "Runing test script"
         if: ${{ inputs.test-script && ! inputs.skip-test }}
         run: ${{ inputs.test-script }}
+
+      - name: "Prepare artifact for:  ${{ inputs.output-artifact }}"
+        if: ${{ inputs.output-artifact }}
+        run: |
+          rm -rf .artifact
+          mkdir  .artifact
+          ${{ inputs.artifact-script }}
+          echo "Artifact content:"
+          ls -laR .artifact
 
       - name: "Uploading artifact: ${{ inputs.output-artifact }}"
         if: ${{ inputs.output-artifact }}
