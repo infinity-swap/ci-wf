@@ -1,13 +1,36 @@
-name: Run tests in DFX environment
+name: "Build and Test"
 on:
   workflow_call:
     inputs:
-      entrypoint-script:
-        required: true
+      # Tests script to launch integration (whatever) tests with DFX environment
+      # If skipped tests would not be launched
+      test-script:
         type: string
-      ic-module-name:
-        required: true
+        required: false
+      # Force skipping test-script if it is provided
+      # Use this for advanced configuration
+      skip-test:
+        type: boolean
+        required: false
+      # Name of the github artfact to upload for reusing in next jobs
+      # If not defined -> would skip artifact uploading
+      output-artifact:
         type: string
+        required: false
+      # Script that builds artifact files and put them into .artifact directory
+      artifact-script:
+        type: string
+        required: false
+      # Additional artifact logic to run before tests
+      artifact-pre-script:
+        type: string
+        required: false
+      skip-target-cache:
+        type: boolean
+        required: false
+      rs-skip-clippy:
+        type: boolean
+        required: false
     secrets:
       gh_token:
         required: true
@@ -16,10 +39,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  IC_MODULE_NAME: ${{ inputs.ic-module-name }}
 
 jobs:
-  dfx-based-tests:
+  assemble-and-test:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/infinity-swap/ic-dev-full:latest
@@ -40,36 +62,53 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: update
-          
-      - name: "Checking code format"
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all --check
 
-      - name: Run audit
-        run: |
-          cargo install cargo-audit
-          cargo audit --ignore RUSTSEC-2020-0071 --ignore RUSTSEC-2020-0159
-          
       - name: Checking format
         run: |
-          cargo fmt -- --check
-          
+          cargo fmt --all --check
+
       - name: Running clippy
+        if: ${{ ! inputs.rs-skip-clippy }}
         run: |
-          cargo clippy -D Wa
-          
+          cargo clippy --all-features --all-targets
+
       - name: Runing tests script
         run: |
           echo "ENVIRONMENT"
           env
           ${{ inputs.entrypoint-script }}
-          
-      - name: Notify slack channel
-        uses: slackapi/slack-github-action@v1.17.0
+
+      - name: "Current environment"
+        run: |
+          env
+
+      - name: "Artifact initialization"
+        if: ${{ inputs.output-artifact }}
+        run: |
+          rm -rf .artifact
+          mkdir  .artifact
+          ${{ inputs.artifact-pre-script }}
+
+      - name: "Runing test script"
+        if: ${{ inputs.test-script && ! inputs.skip-test }}
+        run: ${{ inputs.test-script }}
+
+      - name: "Preparing artifact files"
+        if: ${{ inputs.output-artifact }}
+        run: |
+          ${{ inputs.artifact-script }}
+
+          echo "Artifact content:"
+          ls -laR .artifact
+
+      - name: "Uploading artifact: ${{ inputs.output-artifact }}"
+        if: ${{ inputs.output-artifact }}
+        uses: actions/upload-artifact@v3
         with:
-          channel-id: "alerts-github-actions"
-          slack-message: "GitHub Test workflow result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          if-no-files-found: error
+          retention-days: 3
+          name: ${{ inputs.output-artifact }}
+          path: .artifact/*
+
+      - name: "Removing wasm modules from target if any"
+        run: rm -f target/wasm32-unknown-unknown/release/*.wasm
