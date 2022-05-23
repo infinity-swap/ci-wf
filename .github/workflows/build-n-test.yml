@@ -25,7 +25,7 @@ on:
       artifact-pre-script:
         type: string
         required: false
-      skip-target-cache:
+      enable-target-cache:
         type: boolean
         required: false
       rs-skip-clippy:
@@ -82,7 +82,7 @@ jobs:
             /usr/local/cargo/
 
       - name: Cargo target cache
-        if: ${{ ! inputs.skip-target-cache }}
+        if: ${{ inputs.enable-target-cache }}
         uses: actions/cache@v3
         with:
           # Cache target once per week/branch
