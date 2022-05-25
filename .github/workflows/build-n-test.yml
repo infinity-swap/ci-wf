@@ -28,6 +28,9 @@ on:
       enable-target-cache:
         type: boolean
         required: false
+      disable-cache:
+        type: boolean
+        required: false
       rs-skip-clippy:
         type: boolean
         required: false
@@ -68,6 +71,7 @@ jobs:
         # run: echo "::set-output name=tag::$(git ls-files -s $GITHUB_WORKSPACE/neuro/*/src | git hash-object --stdin)"
 
       - name: Cargo deps cache
+        if: ${{ ! inputs.disable-cache }}
         uses: actions/cache@v3
         with:
           # hashFiles function does not work because of error "The template is not valid." but template is valid
@@ -78,11 +82,17 @@ jobs:
             cargo-deps-
 
           path: |
-            ~/.cargo
-            /usr/local/cargo/
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            /usr/local/cargo/bin/
+            /usr/local/cargo/registry/index/
+            /usr/local/cargo/registry/cache/
+            /usr/local/cargo/git/db/
 
       - name: Cargo target cache
-        if: ${{ inputs.enable-target-cache }}
+        if: ${{ inputs.enable-target-cache && ! inputs.disable-cache}}
         uses: actions/cache@v3
         with:
           # Cache target once per week/branch
