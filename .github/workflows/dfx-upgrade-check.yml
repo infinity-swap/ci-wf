@@ -1,0 +1,54 @@
+name: "DFX upgrade check"
+on:
+  workflow_call:
+    inputs:
+      # Script that will be called with arguments
+      latest-image:
+        type: string
+        required: true
+      upgrade-script:
+        type: string
+        required: true
+      input-artifact:
+        type: string
+        required: true
+      skip-check:
+        type: boolean
+        required: false
+    secrets:
+      gh_token:
+        required: true
+      gh_login:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  assemble-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.latest-image }}
+      credentials:
+        username: ${{ secrets.gh_login }}
+        password: ${{ secrets.gh_token }}
+
+    steps:
+      - name: Checkout repository and submodules
+        if: ${{ ! inputs.skip-check }}
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.gh_token }}
+
+      - name: "Downloading artifact: ${{ inputs.input-artifact }}"
+        if: ${{ ! inputs.skip-check }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.input-artifact }}
+          path: ./artifact
+
+      - name: Running upgrade script
+        if: ${{ ! inputs.skip-check }}
+        run: |
+          ${{ inputs.upgrade-script }} .artifact
