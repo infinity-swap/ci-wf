@@ -1,0 +1,111 @@
+name: Build image based on ic
+on:
+  workflow_call:
+
+    inputs:
+      gcs_bucket:
+        type: string
+        required: false        
+    secrets:
+      gh_token:
+        required: true
+      gcp_token:
+        required: true
+
+env:
+  GC_BUCKET: ${{ inputs.gcs_bucket }}
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Geting week number
+        id: date
+        run: echo "::set-output name=week::$(date +'%U')"
+      
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.gh_token }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      
+      - name: Cargo deps cache
+        uses: actions/cache@v3
+        with:
+          key: cargo-deps-${{ steps.date.outputs.week }}
+          restore-keys: |
+            cargo-deps-
+
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            /usr/local/cargo/bin/
+            /usr/local/cargo/registry/index/
+            /usr/local/cargo/registry/cache/
+            /usr/local/cargo/git/db/
+
+      - name: "Current environment"
+        run: |
+          env
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --no-deps
+
+      - name: "Uploading doc artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          retention-days: 1
+          name: target-doc
+          path: ./target/doc/*
+
+
+  publish:
+    needs: [assemble]
+    runs-on: ubuntu-latest
+    steps:
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.gcp_token }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: "Downloading doc artifact"
+        uses: actions/download-artifact@v3
+        with:
+          name: target-doc
+          path: doc
+
+      - name: "Publish to GCP"
+        run: |
+          REPO=$(basename ${{github.repository}})
+          REPO_INDEX_FILE="${REPO}.url.txt"
+          mv doc $REPO
+
+          INDEX_URI=$(find ./$REPO -maxdepth 2  -name index.html | head -n 1)
+
+          echo "Repository $REPO"
+          echo "Index path $REPO_INDEX_FILE -> $INDEX_URI"
+
+          mkdir -p bucket
+          gsutil cp "gs://$GC_BUCKET/*.url.txt" bucket 2>/dev/null || :
+          gsutil rm -r "gs://$GC_BUCKET/$REPO" 2>/dev/null || :
+          gsutil cp -r $REPO "gs://$GC_BUCKET/" 
+
+          echo -n "$INDEX_URI" > "bucket/$REPO_INDEX_FILE"
+          ls -la bucket
+          gsutil cp bucket/$REPO_INDEX_FILE "gs://$GC_BUCKET/$REPO_INDEX_FILE" 
+
+
+
+
