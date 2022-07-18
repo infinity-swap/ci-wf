@@ -55,6 +55,10 @@ jobs:
           name: ${{ inputs.input-artifact }}
           path: ./.artifact
 
+      - name: "Artifact content"
+        run: |
+          ls -laR ./.artifact
+
       - name: Running upgrade script
         if: ${{ ! inputs.skip-check }}
         run: |
