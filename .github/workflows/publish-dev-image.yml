@@ -23,17 +23,26 @@ on:
       output-image-tag-latest:
         type: boolean
         required: false
-        
+      gcp_registry_domain:
+        type: string
+        required: false
+      gcp_registry_image:
+        type: string
+        required: false
+
     secrets:
       gh_token:
         required: true
       gh_login:
         required: true
+      gcp_registry_token:
+        required: false
 
 jobs:
   publish-wrapped-artifact:
     runs-on: ubuntu-latest
-
+    env:
+      GCP_REG_TOKEN: ${{ secrets.gcp_registry_token }}
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -47,6 +56,14 @@ jobs:
           registry: ghcr.io
           username: ${{ secrets.gh_login }}
           password: ${{ secrets.gh_token }}
+
+      - name: Login to GCP Registry
+        if: ${{ env.GCP_REG_TOKEN && inputs.gcp_registry_domain }}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ inputs.gcp_registry_domain }}
+          username: _json_key
+          password: ${{ secrets.gcp_registry_token }}
 
       - name: Checkout template repo
         uses: actions/checkout@v3
@@ -81,6 +98,13 @@ jobs:
           echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/${{ inputs.output-image-name }}:${{ github.ref_name }}" >> $GITHUB_ENV
           echo "TAG ADDED: ${{ github.ref_name }}"
 
+      - name: "Adding image tag for GCP"
+        if: ${{ github.ref_type == 'tag' && env.GCP_REG_TOKEN }}
+        run: |
+          echo "IMAGE_TAG_GCP=${{ inputs.gcp_registry_domain }}/${{ inputs.gcp_registry_image }}:${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG_GCP_LATEST=${{ inputs.gcp_registry_domain }}/${{ inputs.gcp_registry_image }}:latest" >> $GITHUB_ENV
+          echo "TAG ADDED: ${{ github.ref_name }}"
+
       - name: "Building image. Will publish: ${{ inputs.push-image }}"
         uses: docker/build-push-action@v2
         with:
@@ -90,4 +114,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_TAG_LATEST }}
+            ${{ env.IMAGE_TAG_GCP }}
+            ${{ env.IMAGE_TAG_GCP_LATEST }}
             
