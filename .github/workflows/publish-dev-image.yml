@@ -39,7 +39,7 @@ on:
         required: false
 
 jobs:
-  publish-wrapped-artifact:
+  publish-dev-image:
     runs-on: ubuntu-latest
     env:
       GCP_REG_TOKEN: ${{ secrets.gcp_registry_token }}
@@ -84,7 +84,7 @@ jobs:
       - name: List files from artifact
         run: ls -laR ./.artifact
 
-      - name: "Fail if not latest build or no tag is provided"
+      - name: "Fail if no latest build or no tag is provided"
         if: ${{ inputs.push-image && github.ref_type != 'tag'  && ! inputs.output-image-tag-latest }}
         run: exit 42
 
@@ -101,7 +101,7 @@ jobs:
       - name: "Adding image tag for GCP"
         if: ${{ github.ref_type == 'tag' && env.GCP_REG_TOKEN }}
         run: |
-          echo "IMAGE_TAG_GCP=${{ inputs.gcp_registry_domain }}/${{ inputs.gcp_registry_image }}:${{ github.ref_name }}" >> $GITHUB_ENV
+          # echo "IMAGE_TAG_GCP=${{ inputs.gcp_registry_domain }}/${{ inputs.gcp_registry_image }}:${{ github.ref_name }}" >> $GITHUB_ENV
           echo "IMAGE_TAG_GCP_LATEST=${{ inputs.gcp_registry_domain }}/${{ inputs.gcp_registry_image }}:latest" >> $GITHUB_ENV
           echo "TAG ADDED: ${{ github.ref_name }}"
 
