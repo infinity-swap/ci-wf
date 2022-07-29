@@ -14,7 +14,7 @@ on:
         required: true
       timeout:
         type: string
-        required: true
+        required: false
       region:
         type: string
         required: false
@@ -45,3 +45,7 @@ jobs:
           suffix: run-${{ github.run_number }}
           image: ${{ inputs.gcp_image_uri }}:latest
 
+      - name: "Services URLs"
+        run: |
+          gcloud run --project ${{ inputs.gcp_project }} services list --platform managed --format 'table(metadata.name, status.url)'
+          
